@@ -10,8 +10,8 @@
    Table "orders" needs columns: customer_name, item_name,
    quantity, pickup_time (one row is created per cart item).
 --------------------------------------------------------- */
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://supabase.com/dashboard/project/wrdisotabprckslodgdk";
+const SUPABASE_ANON_KEY = "https://wrdisotabprckslodgdk.supabase.co/rest/v1/";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ---------------------------------------------------------
