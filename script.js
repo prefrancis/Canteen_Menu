@@ -1,9 +1,18 @@
 /* =========================================================
    KANTINA QUEUE — School Canteen Pre-Order System
-   All data is kept in memory (no backend/localStorage).
-   Reloading the page resets orders — connect this to a real
-   backend/database to persist data across sessions.
+   Orders are saved to Supabase (table: "orders") so they
+   persist across page reloads and devices.
 ========================================================= */
+
+/* ---------------------------------------------------------
+   0. SUPABASE SETUP
+   Find these in Supabase Dashboard > Project Settings > API.
+   Table "orders" needs columns: customer_name, item_name,
+   quantity, pickup_time (one row is created per cart item).
+--------------------------------------------------------- */
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ---------------------------------------------------------
    1. EDIT YOUR MENU HERE
@@ -268,7 +277,7 @@ function renderCheckoutSummary() {
   `;
 }
 
-checkoutForm.addEventListener("submit", (e) => {
+checkoutForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const payment = document.querySelector('input[name="payment"]:checked').value;
   const gcashRef = el("gcashRef").value.trim();
@@ -279,20 +288,47 @@ checkoutForm.addEventListener("submit", (e) => {
     return;
   }
 
+  const studentName = el("studentName").value.trim();
+  const pickupTime = el("pickupTime").value;
+  const lines = cartLines();
+
   const order = {
     id: crypto.randomUUID(),
     ticket: PICKUP_PREFIX + String(state.nextTicket).padStart(3, "0"),
-    studentName: el("studentName").value.trim(),
+    studentName,
     studentSection: el("studentSection").value.trim(),
-    pickupTime: el("pickupTime").value,
+    pickupTime,
     payment,
     gcashRef: payment === "gcash" ? gcashRef : null,
     paid: payment === "cash" ? false : false, // cash: unpaid until pickup, gcash: pending verification
-    items: cartLines().map((l) => ({ name: l.name, qty: l.qty, price: l.price })),
+    items: lines.map((l) => ({ name: l.name, qty: l.qty, price: l.price })),
     total: cartTotal(),
     status: "Pending",
     createdAt: new Date(),
   };
+
+  // Save one row per cart item to the "orders" table in Supabase
+  const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Placing order…";
+
+  const rows = lines.map((l) => ({
+    customer_name: studentName,
+    item_name: l.name,
+    quantity: l.qty,
+    pickup_time: pickupTime,
+  }));
+
+  const { error } = await supabaseClient.from("orders").insert(rows);
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Place Order";
+
+  if (error) {
+    console.error("Supabase insert error:", error);
+    alert("❌ Something went wrong saving your order. Please try again.");
+    return;
+  }
 
   state.orders.unshift(order);
   state.myTicketIds.push(order.id);
